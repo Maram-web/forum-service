@@ -22,7 +22,7 @@ spec:
             - containerPort: 8085
           volumeMounts:
             - name: cephfs-vol
-              mountPath: /mnt/cephfs/forum
+              mountPath: /mnt/cephfs
       volumes:
         - name: cephfs-vol
           persistentVolumeClaim:
