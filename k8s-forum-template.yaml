@@ -18,7 +18,10 @@ spec:
           image: marammanai/forum-service:__IMAGE_TAG__
           imagePullPolicy: Always
           ports:
-            - containerPort: 8085
+            - containerPort: 8088  # ✅ DOIT matcher `server.port=8088`
+          env:
+            - name: EUREKA_URL
+              value: http://eureka-service.default.svc.cluster.local:8761/eureka
           volumeMounts:
             - name: cephfs-vol
               mountPath: /mnt/cephfs
@@ -36,9 +39,5 @@ spec:
   selector:
     app: forum-service
   ports:
-    - port: 8085
-      targetPort: 8085
-
-
-
-
+    - port: 8088   # ✅ Même port que `server.port`
+      targetPort: 8088
