@@ -13,10 +13,9 @@ spec:
       labels:
         app: forum-service
     spec:
-      serviceAccountName: vm-executor
       containers:
         - name: forum-service
-          image: marammanai/forum-service:__IMAGE_TAG__   # ← remplacé automatiquement
+          image: marammanai/forum-service:__IMAGE_TAG__
           imagePullPolicy: Always
           ports:
             - containerPort: 8085
