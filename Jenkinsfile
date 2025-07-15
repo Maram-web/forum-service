@@ -9,6 +9,7 @@ pipeline {
         DEPLOY_YAML = "k8s-forum-deployment.yaml"
     }
 
+
     stages {
         stage('Build') {
             steps {
