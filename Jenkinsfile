@@ -7,11 +7,17 @@ pipeline {
         IMAGE_NAME = "marammanai/forum-service:${IMAGE_TAG}"
         K8S_MASTER = "ceph1@192.168.13.11"
         DEPLOY_YAML = "k8s-forum-deployment.yaml"
+        DEPLOY_YAML_TEMPLATE = "k8s-forum-template.yaml"
     }
 
-
     stages {
-        stage('Build') {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Maram-web/forum.git'
+            }
+        }
+
+        stage('Build Maven') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
@@ -19,21 +25,41 @@ pipeline {
 
         stage('Docker Build & Push') {
             steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh """
+                        docker build -t ${IMAGE_NAME} .
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                        docker push ${IMAGE_NAME}
+                    """
+                }
+            }
+        }
+
+        stage('Prepare YAML') {
+            steps {
                 sh """
-                docker build -t ${IMAGE_NAME} .
-                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                docker push ${IMAGE_NAME}
+                    sed "s|__IMAGE_TAG__|${IMAGE_TAG}|g" ${DEPLOY_YAML_TEMPLATE} > ${DEPLOY_YAML}
                 """
             }
         }
 
-        stage('Deploy to K8s') {
+        stage('Deploy to Kubernetes') {
             steps {
                 sh """
-                scp ${DEPLOY_YAML} ${K8S_MASTER}:/home/ceph1/
-                ssh ${K8S_MASTER} "sed -i 's|__IMAGE_TAG__|${IMAGE_TAG}|g' /home/ceph1/${DEPLOY_YAML} && kubectl apply -f /home/ceph1/${DEPLOY_YAML}"
+                    ssh-keyscan -H 192.168.13.11 >> ~/.ssh/known_hosts
+                    scp ${DEPLOY_YAML} ${K8S_MASTER}:/home/ceph1/
+                    ssh ${K8S_MASTER} kubectl apply -f /home/ceph1/${DEPLOY_YAML}
                 """
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ forum-service déployé avec succès : ${IMAGE_TAG}"
+        }
+        failure {
+            echo "❌ Échec du déploiement forum-service"
         }
     }
 }
