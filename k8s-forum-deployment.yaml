@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forum-service
+  namespace: forum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forum-service
+  template:
+    metadata:
+      labels:
+        app: forum-service
+    spec:
+      serviceAccountName: vm-executor
+      containers:
+        - name: forum-service
+          image: marammanai/forum-service:__IMAGE_TAG__   # ← remplacé automatiquement
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8085
+          volumeMounts:
+            - name: cephfs-vol
+              mountPath: /mnt/cephfs
+      volumes:
+        - name: cephfs-vol
+          persistentVolumeClaim:
+            claimName: cephfs-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: forum-service
+  namespace: forum
+spec:
+  selector:
+    app: forum-service
+  ports:
+    - port: 8085
+      targetPort: 8085
