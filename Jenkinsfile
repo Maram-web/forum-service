@@ -11,19 +11,13 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('📦 Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Maram-web/forum.git'
+                git branch: 'forum', url: 'https://github.com/Maram-web/forum-service.git'
             }
         }
 
-        stage('Build Maven') {
-            steps {
-                sh 'mvn clean package -DskipTests'
-            }
-        }
-
-        stage('Docker Build & Push') {
+        stage('🐳 Docker Build & Push') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh """
@@ -35,7 +29,7 @@ pipeline {
             }
         }
 
-        stage('Prepare YAML') {
+        stage('📄 Prepare YAML') {
             steps {
                 sh """
                     sed "s|__IMAGE_TAG__|${IMAGE_TAG}|g" ${DEPLOY_YAML_TEMPLATE} > ${DEPLOY_YAML}
@@ -43,7 +37,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('🚀 Deploy to Kubernetes') {
             steps {
                 sh """
                     ssh-keyscan -H 192.168.13.11 >> ~/.ssh/known_hosts
@@ -59,7 +53,7 @@ pipeline {
             echo "✅ forum-service déployé avec succès : ${IMAGE_TAG}"
         }
         failure {
-            echo "❌ Échec du déploiement forum-service"
+            echo "❌ Échec du déploiement de forum-service"
         }
     }
 }
