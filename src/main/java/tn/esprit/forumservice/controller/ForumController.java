@@ -1,6 +1,7 @@
 package tn.esprit.forumservice.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -15,6 +16,7 @@ import java.util.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/forum")
+@Slf4j  // <<--- Ajoute l’annotation pour activer le logger SLF4J
 public class ForumController {
 
     @Value("${cephfs.mount.path:/mnt/cephfs}")
@@ -26,21 +28,22 @@ public class ForumController {
         return Paths.get(cephfsBasePath, "forum");
     }
 
-    // ✅ Publier un message
     @PostMapping("/post")
     public ResponseEntity<String> postMessage(@RequestBody Map<String, String> body, Authentication authentication) {
         try {
             String username = authentication.getName();
             String message = body.get("message");
             String entry = "[" + username + "] " + message;
+
+            log.info("📩 [{}] poste un message : {}", username, message);
             forumService.saveMessage(entry);
             return ResponseEntity.ok("✅ Message posté");
         } catch (Exception e) {
+            log.error("❌ Erreur lors de la publication du message : {}", e.getMessage());
             return ResponseEntity.internalServerError().body("❌ Erreur lors de la publication du message : " + e.getMessage());
         }
     }
 
-    // ✅ Ajouter un commentaire à un post
     @PostMapping("/comment")
     public ResponseEntity<String> postComment(@RequestParam String postFile,
                                               @RequestParam String comment,
@@ -51,6 +54,7 @@ public class ForumController {
             Path commentsDir = Paths.get(postPath.toString() + ".comments");
 
             if (!Files.exists(postPath)) {
+                log.warn("📄 Tentative de commenter un post inexistant : {}", postFile);
                 return ResponseEntity.badRequest().body("❌ Le post n'existe pas !");
             }
 
@@ -58,20 +62,22 @@ public class ForumController {
             String filename = "comment-" + System.currentTimeMillis() + "-" + username + ".txt";
             Files.writeString(commentsDir.resolve(filename), "[" + username + "] " + comment);
 
+            log.info("💬 [{}] commente le post {} : {}", username, postFile, comment);
             return ResponseEntity.ok("✅ Commentaire ajouté");
         } catch (IOException e) {
+            log.error("❌ Erreur lors de l'ajout du commentaire : {}", e.getMessage());
             return ResponseEntity.internalServerError().body("❌ Erreur lors de l'ajout du commentaire : " + e.getMessage());
         }
     }
 
-    // ✅ Récupérer tous les posts et leurs commentaires
     @GetMapping("/messages")
     public ResponseEntity<List<ForumPost>> getMessagesAndComments() {
         List<ForumPost> results = new ArrayList<>();
         try {
             Path forumDir = getForumDir();
             if (!Files.exists(forumDir)) {
-                return ResponseEntity.ok(results); // retourne liste vide
+                log.info("📂 Aucun dossier de messages trouvé, retourne une liste vide.");
+                return ResponseEntity.ok(results);
             }
 
             Files.list(forumDir)
@@ -92,29 +98,37 @@ public class ForumController {
                                         .forEach(cPath -> {
                                             try {
                                                 comments.add(Files.readString(cPath));
-                                            } catch (IOException ignored) {}
+                                            } catch (IOException ignored) {
+                                                log.warn("⚠️ Impossible de lire un commentaire : {}", cPath);
+                                            }
                                         });
                             }
 
                             results.add(new ForumPost(post, filename, date, comments));
-                        } catch (IOException ignored) {}
+                        } catch (IOException e) {
+                            log.warn("⚠️ Impossible de lire un post : {}", postPath);
+                        }
                     });
 
+            log.info("📨 {} posts récupérés avec leurs commentaires", results.size());
             return ResponseEntity.ok(results);
         } catch (IOException e) {
+            log.error("❌ Erreur lors de la récupération des messages : {}", e.getMessage());
             return ResponseEntity.internalServerError().body(null);
         }
     }
 
-    // ✅ Obtenir le chemin monté
     @GetMapping("/path")
     public ResponseEntity<String> getMountPath() {
-        return ResponseEntity.ok(getForumDir().toString());
+        String path = getForumDir().toString();
+        log.info("📁 Chemin du montage CephFS : {}", path);
+        return ResponseEntity.ok(path);
     }
 
-    // ✅ Obtenir le nom de l’utilisateur authentifié
     @GetMapping("/me")
     public ResponseEntity<String> getMyUsername(Authentication authentication) {
-        return ResponseEntity.ok(authentication.getName());
+        String username = authentication.getName();
+        log.info("🙋 Utilisateur authentifié : {}", username);
+        return ResponseEntity.ok(username);
     }
 }
