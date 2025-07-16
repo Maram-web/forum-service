@@ -15,7 +15,7 @@ import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/forum")
+@RequestMapping("/api/forum")
 @Slf4j  // <<--- Ajoute l’annotation pour activer le logger SLF4J
 public class ForumController {
 
